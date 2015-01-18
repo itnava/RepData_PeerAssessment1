@@ -1,25 +1,191 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template.Rmd"
+author: "Itnava"
+date: "01/18/2015"
+output: html_document
 ---
 
+Initializing:
 
-## Loading and preprocessing the data
+```{r}
+activity <- read.csv("activity.csv")
+```
+
+Loading libraries : 'dplyr', 'lubridate', 'lattice',
+
+```{r, message = FALSE}
+library("dplyr")
+library("lubridate")
+library("lattice")
+
+```
+
+Loading data frame in dplyr, to make it easier to read. Also changing the date format so it can be easily accessed and manipulated to get days of the week etc.
+
+In addition, rows with NA can be dropped for the initial analysis.
 
 
+```{r}
+activity_df1 <- tbl_df(activity)
+activity_df <- mutate(activity_df1, forymd = ymd(date))
+nona_steps <- !is.na(activity_df$steps)
 
-## What is mean total number of steps taken per day?
+```
+##Part 1.
+In order to make the histogram of daily activity, we first need to calculate the number of steps per day. This is also useful for calculating the mean and median of daily activity.
+
+```{r}
+activity_perday <- aggregate(activity_df$steps[nona_steps], list(activity_df$forymd[nona_steps]), sum)
+
+```
+The histogram for daily activity is shown below:
+
+```{r, echo = FALSE}
+hist(activity_perday$x, main = "Distribution of Total Number of Steps Each Day", xlab= "Number of Steps Each Day", col = "blue")
+
+````
+
+```{r}
+summary(activity_perday)
+
+```
+So the **Mean** number of steps taken per day is 10766, while the **Median** is 10765
+
+##Part 2.
+
+In order to make the time series plot, we need to average across intervals. 
+
+```{r}
+activity_perinterval <- aggregate(activity_df$steps[nona_steps], list(activity_df$interval[nona_steps]), mean)
+
+```
+Plotting the activity per interval:
+
+```{r, echo=FALSE}
+plot(activity_perinterval$Group.1, activity_perinterval$x, type = "l", main= "Time Series", xlab = " Interval", ylab = "Average number of steps")
+```
+
+Calculating interval with highest activity:
+
+```{r}
+
+maxrow <- which(activity_perinterval$x == max(activity_perinterval$x))
+
+summary(activity_perinterval)
+
+```
+The maximum activity occurs during interval 205-210
+
+## Part 3.
+
+The assignment asks to replace the missing data with reasonable values. Mean or median for the day or interval can be chosen. I am choosing mean for the interval for two reasons. 
+
+1. The interval is more finely grained.
+2. Some of the days have no data.
+
+```{r}
+
+length(activity_perday$x)
+length(unique(activity_df$forymd))
+```
+
+Adding a column to store numeric code for missing data
 
 
+```{r}
+activity_dfmissing <- mutate(activity_df, missing = as.numeric(is.na(activity_df$steps)))
+                             
+sum(activity_dfmissing$missing)
 
-## What is the average daily activity pattern?
+````
+
+Modifying column names to facilitate "merge", the average number of steps per iterval is propagated through the last column.
+
+```{r}
+
+colnames(activity_perinterval) <- c("interval", "averageperinterval")
+dfmissing <- merge(activity_dfmissing, activity_perinterval, by = "interval")
+```
+Duplicating the column with steps and generating list of rownames where steps is NA:
+
+```{r}
+
+dfmissing_replaced <- mutate(dfmissing, replaced = steps)
+
+rowname <- c(which(is.na(dfmissing_replaced$steps)))
+
+```
+Replacing NA values in duplicate column with the average for the corresponding interval:
+```{r}
+missing_replaced <- replace(dfmissing_replaced$replaced, rowname, dfmissing_replaced$averageperinterval[rowname])
+
+dfmissing_replaced <- mutate(dfmissing_replaced, missing_replaced)
+
+dfmissing_replaced <- arrange(dfmissing_replaced, forymd, interval)                             
+```
+Generating table similar to the input table:
+
+```{r}
+activitymissing_replaced <- select(dfmissing_replaced, missing_replaced, date, interval, -forymd, -steps, -averageperinterval, -replaced )
+
+head(activitymissing_replaced)
+
+head(activity_df1)
+
+```
+To generate the histogram per interval, we need to aggregate the data usign interval
+
+```{r}
+
+activityreplaced_perday <- aggregate(dfmissing_replaced$missing_replaced, list(dfmissing_replaced$forymd), sum)
+
+summary(activityreplaced_perday)
+
+```
+
+So the **Mean** and **Median** are both equal, 10766.
+
+The plot of the resulting distribution is:
+
+```{r, echo= FALSE}
+
+hist(activityreplaced_perday$x, main = "Distribution of Average Steps each day with NA set as interval mean", xlab = "Number of Steps Each day", col = "blue")
+```
+
+## Part4.
+
+We need to add labels "Weekend" and "Weekday" to the data table. 
+
+```{r}
+
+activity_dfwday <- mutate(activity_df, weekday = wday(activity_df$forymd))
+
+head(activity_dfwday)
+
+```
+
+The weekday column contains numbers 1 to 7, where 1 stands for Sunday. Using this to classify the weekend:
+
+```{r}
 
 
+activity_dfwday <- mutate(activity_dfwday, endorno = is.element(activity_dfwday$weekday, c(2,3,4,5,6)))
 
-## Imputing missing values
+activity_dfwday$classifyweekday <- factor(activity_dfwday$endorno, labels = c("weekend", "weekday"))
+
+head(activity_dfwday)
+
+```
+
+Aggregating data:
+
+```{r}
+weekday_weekend <- aggregate(activity_dfwday$steps[nona_steps], list(activity_dfwday$interval[nona_steps], activity_dfwday$classifyweekday[nona_steps]), mean)
+
+```
+```{r, echo =FALSE}
+xyplot(x ~ Group.1 | factor(Group.2), data=weekday_weekend, type = "l", layout = c(1,2), xlab = "interval", ylab = "Number of steps")
+```
 
 
-
-## Are there differences in activity patterns between weekdays and weekends?
+```
