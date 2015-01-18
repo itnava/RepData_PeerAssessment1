@@ -10,8 +10,6 @@ output:
 Initializing:
 
 ```{r}
-setwd("~/Coursera/ReproducibleResearch/week2")
-fig.path = "/Coursera/ReproducibleResearch/week2/figures"
 figure.keep = 'all'
 activity <- read.csv("activity.csv")
 
