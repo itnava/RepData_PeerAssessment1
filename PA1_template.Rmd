@@ -2,13 +2,19 @@
 title: "PA1_template.Rmd"
 author: "Itnava"
 date: "01/18/2015"
-output: html_document
+output:
+  html_document:
+    keep_md: yes
 ---
 
 Initializing:
 
 ```{r}
+setwd("~/Coursera/ReproducibleResearch/week2")
+fig.path = "/Coursera/ReproducibleResearch/week2/figures"
+figure.keep = 'all'
 activity <- read.csv("activity.csv")
+
 ```
 
 Loading libraries : 'dplyr', 'lubridate', 'lattice',
